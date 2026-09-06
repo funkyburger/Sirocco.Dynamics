@@ -8,5 +8,6 @@ namespace Sirocco.Dynamics.Model
     {
         public string Name { get; set; }
         public IList<Note> Notes { get; set; }
+        public Account? Parent { get; set; }
     }
 }

@@ -5,6 +5,7 @@ using Microsoft.Xrm.Sdk.Query;
 using Sirocco.Dynamics.Model;
 using System;
 using System.Collections.Generic;
+using System.Security.Principal;
 using System.Text;
 
 namespace Sirocco.Dynamics
@@ -35,7 +36,8 @@ namespace Sirocco.Dynamics
             return new Account() { 
                 Id = accountEntity.Id,
                 Name = accountEntity.GetAttributeValue<string>("Name"),
-                Notes = lazy ? new List<Note>() : RetrieveRelatedNotes(accountId).ToList()
+                Notes = lazy ? new List<Note>() : RetrieveRelatedNotes(accountId).ToList(),
+                Parent = FetchAccount(accountEntity.Id)
             };
         }
 
@@ -44,7 +46,8 @@ namespace Sirocco.Dynamics
             var accountId = _organizationService.Create(new Entity("Account")
             {
                 Attributes = new AttributeCollection() {
-                    { "Name", account.Name }
+                    { "Name", account.Name },
+                    { "ParentId", account.Parent?.Id }
                 }
             });
 
@@ -69,7 +72,11 @@ namespace Sirocco.Dynamics
 
         public void Update(Account account)
         {
-            throw new NotImplementedException();
+            var originalAccount = _organizationService.Retrieve("Account", account.Id, new ColumnSet(new string[] { "Name", "ParentId" }));
+            originalAccount["Name"] = account.Name;
+            originalAccount["ParentId"] = account.Parent?.Id;
+
+            _organizationService.Update(originalAccount);
         }
 
         public IList<Account> GetAll()
@@ -101,6 +108,16 @@ namespace Sirocco.Dynamics
                     Text = note.GetAttributeValue<string>("Text")
                 };
             }
+        }
+
+        private Account FetchAccount(Guid accountId)
+        {
+            var originalAccount = _organizationService.Retrieve("Account", accountId, new ColumnSet(new string[] { "Name", "ParentId" }));
+
+            return new Account()
+            {
+                Name = originalAccount.GetAttributeValue<string>("Name")
+            };
         }
     }
 }

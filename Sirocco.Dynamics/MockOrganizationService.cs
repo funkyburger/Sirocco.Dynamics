@@ -31,8 +31,6 @@ namespace Sirocco.Dynamics
                         .SetLicense(FakeXrmEasyLicense.RPL_1_5)
                         .Build();
 
-            //_context.EnableProxyTypes(Assembly.GetAssembly(typeof(Account)));
-
             _context.AddRelationship("account_notes", new XrmFakedRelationship
             {
                 IntersectEntity = "AccountNotes",
