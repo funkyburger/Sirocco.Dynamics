@@ -88,7 +88,27 @@ namespace Sirocco.Dynamics
             originalAccount["Name"] = account.Name;
             originalAccount["ParentId"] = account.Parent?.Id;
 
-            foreach(var contact in account.Contacts)
+            foreach (var note in account.Notes)
+            {
+                if (note.Id != default)
+                {
+                    var originalContact = _organizationService.Retrieve("Note", note.Id, new ColumnSet(new string[] { "Text", "AccountId" }));
+                    originalContact["Text"] = note.Text;
+
+                    _organizationService.Update(originalContact);
+                }
+                else
+                {
+                    _organizationService.Create(new Entity("Note")
+                    {
+                        Attributes = new AttributeCollection() {
+                        { "Text", note.Text },
+                        { "AccountId", account.Id }
+                    }});
+                }
+            }
+
+            foreach (var contact in account.Contacts)
             {
                 if(contact.Id != default)
                 {
