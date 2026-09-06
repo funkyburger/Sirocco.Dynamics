@@ -31,14 +31,14 @@ namespace Sirocco.Dynamics
 
         public Account GetById(Guid accountId, bool lazy = false)
         {
-            var accountEntity = _organizationService.Retrieve("Account", accountId, new ColumnSet(new string[] { "Name" }));
+            var accountEntity = _organizationService.Retrieve("Account", accountId, new ColumnSet(new string[] { "Name", "ParentId" }));
 
             return new Account() { 
                 Id = accountEntity.Id,
                 Name = accountEntity.GetAttributeValue<string>("Name"),
                 Notes = lazy ? new List<Note>() : RetrieveRelatedNotes(accountId).ToList(),
                 Contacts = lazy ? new List<Contact>() : RetrieveRelatedContacts(accountId).ToList(),
-                Parent = lazy ? null : FetchAccount(accountEntity.Id)
+                Parent = lazy ? null : FetchAccount(accountEntity.GetAttributeValue<Guid>("ParentId"))
             };
         }
 
@@ -165,8 +165,13 @@ namespace Sirocco.Dynamics
             }
         }
 
-        private Account FetchAccount(Guid accountId)
+        private Account? FetchAccount(Guid accountId)
         {
+            if(accountId == default)
+            {
+                return null;
+            }
+
             var originalAccount = _organizationService.Retrieve("Account", accountId, new ColumnSet(new string[] { "Name", "ParentId" }));
 
             return new Account()
@@ -174,7 +179,5 @@ namespace Sirocco.Dynamics
                 Name = originalAccount.GetAttributeValue<string>("Name")
             };
         }
-
-        //private void U
     }
 }
