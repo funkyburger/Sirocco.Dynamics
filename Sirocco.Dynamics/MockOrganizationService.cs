@@ -1,4 +1,5 @@
 ﻿using FakeXrmEasy;
+using FakeXrmEasy.Abstractions;
 using FakeXrmEasy.Abstractions.Enums;
 using FakeXrmEasy.Middleware;
 using FakeXrmEasy.Middleware.Crud;
@@ -6,6 +7,8 @@ using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Reflection;
 using System.Text;
 
 namespace Sirocco.Dynamics
@@ -13,10 +16,11 @@ namespace Sirocco.Dynamics
     internal class MockOrganizationService : IOrganizationService
     {
         private readonly IOrganizationService _internalService;
+        private readonly IXrmFakedContext _context;
 
         public MockOrganizationService() 
         {
-            var context = MiddlewareBuilder
+            _context = MiddlewareBuilder
                         .New()
                         .AddCrud()
                         .UseCrud()
@@ -27,7 +31,18 @@ namespace Sirocco.Dynamics
                         .SetLicense(FakeXrmEasyLicense.RPL_1_5)
                         .Build();
 
-            _internalService = context.GetOrganizationService();
+            //_context.EnableProxyTypes(Assembly.GetAssembly(typeof(Account)));
+
+            _context.AddRelationship("account_notes", new XrmFakedRelationship
+            {
+                IntersectEntity = "AccountNotes",
+                Entity1LogicalName = "Account",
+                Entity1Attribute = "Accountid",
+                Entity2LogicalName = "Note",
+                Entity2Attribute = "Noteid"
+            });
+
+            _internalService = _context.GetOrganizationService();
         }
 
         public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities) =>
