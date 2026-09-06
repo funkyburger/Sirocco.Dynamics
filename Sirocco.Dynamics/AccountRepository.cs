@@ -11,7 +11,7 @@ namespace Sirocco.Dynamics
 {
     internal interface IAccountRepository
     {
-        Account GetById(Guid accountId);
+        Account GetById(Guid accountId, bool lazy = false);
         Guid Create(Account account);
         void Update(Account account);
         IList<Account> GetAll();
@@ -28,14 +28,14 @@ namespace Sirocco.Dynamics
             _organizationService = organizationService;
         }
 
-        public Account GetById(Guid accountId)
+        public Account GetById(Guid accountId, bool lazy = false)
         {
             var accountEntity = _organizationService.Retrieve("Account", accountId, new ColumnSet(new string[] { "Name" }));
 
             return new Account() { 
                 Id = accountEntity.Id,
                 Name = accountEntity.GetAttributeValue<string>("Name"),
-                Notes = RetrieveRelatedNotes(accountId).ToList()
+                Notes = lazy ? new List<Note>() : RetrieveRelatedNotes(accountId).ToList()
             };
         }
 
