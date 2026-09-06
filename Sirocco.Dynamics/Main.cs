@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
+using Sirocco.Dynamics.Model;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -16,34 +17,44 @@ namespace Sirocco.Dynamics
     {
         private readonly ILogger<Main> _logger;
         private readonly IOrganizationService _organizationService;
+        private readonly IAccountRepository _accountRepository;
 
-        public Main(ILogger<Main> logger, IOrganizationService organizationService)
+        public Main(ILogger<Main> logger, IOrganizationService organizationService, IAccountRepository accountRepository)
         {
             _logger = logger;
             _organizationService = organizationService;
+            _accountRepository = accountRepository;
         }
 
         public Task Run()
         {
             _logger.LogInformation("Job started.");
 
-            QueryExpression query = new("Account")
+            var account1 = new Account()
             {
-                TopCount = 5
+                Name = "Peter Stuff",
+                Notes = new List<Note> {
+                    new Note() { Text = "Stuffed note 1" },
+                    new Note() { Text = "Another stuffed note" }
+                }
             };
 
-            query.ColumnSet.AddColumn("Name");
-
-            _organizationService.Create(new Entity("Account")
+            var account2 = new Account()
             {
-                Attributes = new AttributeCollection() {
-                    { "Name", "John Doe" }
+                Name = "Henry Winkler",
+                Notes = new List<Note> {
+                    new Note() { Text = "Winkly note 1" },
+                    new Note() { Text = "Another winkly note" },
+                    new Note() { Text = "And a third one" }
                 }
-            });
+            };
 
-            var accounts = _organizationService.RetrieveMultiple(query);
+            var account1Id = _accountRepository.Create(account1);
+            var account2Id = _accountRepository.Create(account2);
 
-            var account = accounts[0];
+            account1 = _accountRepository.GetById(account1Id);
+
+            _logger.LogInformation($"{account1.Name}:{string.Join(",", account1.Notes.Select(n => n.Text))}");
 
             return Task.CompletedTask;
         }
