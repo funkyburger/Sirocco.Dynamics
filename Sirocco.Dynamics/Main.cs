@@ -1,10 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FakeItEasy;
+using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using Sirocco.Dynamics.Model;
 using System;
 using System.Collections.Generic;
+using System.Security.Principal;
 using System.Text;
 
 namespace Sirocco.Dynamics
@@ -53,6 +55,9 @@ namespace Sirocco.Dynamics
             // 9. Update fields in one account and one contact
             UpdateAccountAndContact(account1Id, account2Id);
 
+            // 10. Create a note and associate it with the parent account
+            CreateNoteForAccount(account1Id, account2Id);
+
             LogAccountDetails(_accountRepository.GetById(account1Id));
             LogAccountDetails(_accountRepository.GetById(account2Id));
 
@@ -91,6 +96,16 @@ namespace Sirocco.Dynamics
 
             _accountRepository.Update(account1);
             _accountRepository.Update(account2);
+        }
+
+        private void CreateNoteForAccount(Guid account1Id, Guid account2Id)
+        {
+            var account1 = _accountRepository.GetById(account1Id);
+            var account2 = _accountRepository.GetById(account2Id);
+
+            account1.Notes.Add(new Note() { Text = "This is a note for the parent account." });
+
+            _accountRepository.Update(account1);
         }
 
         private void LogAccountDetails(Account account)
