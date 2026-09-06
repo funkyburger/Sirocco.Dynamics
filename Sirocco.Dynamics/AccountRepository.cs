@@ -56,7 +56,8 @@ namespace Sirocco.Dynamics
                 var noteId = _organizationService.Create(new Entity("Note")
                 {
                     Attributes = new AttributeCollection() {
-                        { "Text", note.Text }
+                        { "Text", note.Text },
+                        { "AccountId", accountId }
                     }
                 });
 
@@ -87,25 +88,22 @@ namespace Sirocco.Dynamics
         private IEnumerable<Note> RetrieveRelatedNotes(Guid accountId)
         {
             var filter = new FilterExpression();
-            filter.Conditions.Add(new ConditionExpression("Accountid", ConditionOperator.Equal, accountId));
-            QueryExpression relationQuery = new("AccountNotes")
+            filter.Conditions.Add(new ConditionExpression("AccountId", ConditionOperator.Equal, accountId));
+            QueryExpression relatedNotesQuery = new("Note")
             {
                 TopCount = 100
             };
-            relationQuery.ColumnSet.AddColumns("Noteid");
-            relationQuery.Criteria.AddFilter(filter);
+            relatedNotesQuery.ColumnSet.AddColumns("Text");
+            relatedNotesQuery.Criteria.AddFilter(filter);
 
-            var relatedNotes = _organizationService.RetrieveMultiple(relationQuery);
+            var relatedNotes = _organizationService.RetrieveMultiple(relatedNotesQuery);
 
-            foreach (var relation in relatedNotes.Entities)
+            foreach (var relatedNote in relatedNotes.Entities)
             {
-                var noteId = relation.GetAttributeValue<Guid>("Noteid");
-                var note = _organizationService.Retrieve("Note", noteId, new ColumnSet("Text"));
-
                 yield return new Note()
                 {
-                    Id = noteId,
-                    Text = note.GetAttributeValue<string>("Text")
+                    Id = relatedNote.Id,
+                    Text = relatedNote.GetAttributeValue<string>("Text")
                 };
             }
         }
