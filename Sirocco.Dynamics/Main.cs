@@ -43,7 +43,30 @@ namespace Sirocco.Dynamics
             var account1Id = _accountRepository.Create(account1);
             var account2Id = _accountRepository.Create(account2);
 
+            SetParentRelation(account1Id, account2Id);
+
+            LogAccountDetails(_accountRepository.GetById(account1Id));
+            LogAccountDetails(_accountRepository.GetById(account2Id));
+
             return Task.CompletedTask;
+        }
+
+        private void SetParentRelation(Guid account1Id, Guid account2Id)
+        {
+            var account1 = _accountRepository.GetById(account1Id);
+            var account2 = _accountRepository.GetById(account2Id);
+
+            account2.Parent = account1;
+
+            _accountRepository.Update(account2);
+        }
+
+        private void LogAccountDetails(Account account)
+        {
+            _logger.LogInformation($"Account ID: {account.Id}, Name: {account.Name}, Parent:{account.Parent?.Name} \n"
+                + $"Notes:{string.Join(", ", account.Notes.Select(n => $"'{n.Text}'"))}");
+                //+ $"Contacts:{string.Join(", ", $"'{account.Notes}'")}");
+
         }
     }
 }
