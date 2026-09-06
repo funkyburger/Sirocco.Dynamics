@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Identity.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using Sirocco.Dynamics.Model;
@@ -49,6 +50,9 @@ namespace Sirocco.Dynamics
             // 8. Create two contacts and associate the first one with the first account and the second one with the second account
             SetContacts(account1Id, account2Id);
 
+            // 9. Update fields in one account and one contact
+            UpdateAccountAndContact(account1Id, account2Id);
+
             LogAccountDetails(_accountRepository.GetById(account1Id));
             LogAccountDetails(_accountRepository.GetById(account2Id));
 
@@ -72,6 +76,18 @@ namespace Sirocco.Dynamics
 
             account1.Contacts.Add(new Contact() { Name = "Contact 1", PhoneNumber = "123-456-7890" });
             account2.Contacts.Add(new Contact() { Name = "Contact 2", PhoneNumber = "987-654-3210" });
+
+            _accountRepository.Update(account1);
+            _accountRepository.Update(account2);
+        }
+
+        private void UpdateAccountAndContact(Guid account1Id, Guid account2Id)
+        {
+            var account1 = _accountRepository.GetById(account1Id);
+            var account2 = _accountRepository.GetById(account2Id);
+
+            account1.Name = "Updated Parent Account";
+            account2.Contacts.First().PhoneNumber = "111-222-3333";
 
             _accountRepository.Update(account1);
             _accountRepository.Update(account2);
