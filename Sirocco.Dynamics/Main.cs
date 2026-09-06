@@ -36,6 +36,11 @@ namespace Sirocco.Dynamics
                 Notes = new List<Note> {
                     new Note() { Text = "Stuffed note 1" },
                     new Note() { Text = "Another stuffed note" }
+                },
+                Contacts = new List<Contact>
+                {
+                    new Contact { Name = "Contact A", PhoneNumber = "111-222-3333" },
+                    new Contact { Name = "Contact B", PhoneNumber = "444-555-6666" }
                 }
             };
 
@@ -57,6 +62,11 @@ namespace Sirocco.Dynamics
 
             account2.Name = "Henry Winkler (updated)";
             account2.Parent = account1;
+            account2.Contacts = new List<Contact>
+            {
+                new Contact { Name = "Contact 1", PhoneNumber = "123-456-7890" },
+                new Contact { Name = "Contact 2", PhoneNumber = "987-654-3210" }
+            };
 
             _accountRepository.Update(account2);
 
@@ -67,7 +77,7 @@ namespace Sirocco.Dynamics
                 _logger.LogInformation($"{account2.Name} has parent.");
             }
             
-            _logger.LogInformation($"{account2.Name}:{string.Join(",", account2.Notes.Select(n => n.Text))}");
+            _logger.LogInformation($"{account2.Name}:{string.Join(",", account2.Notes.Select(n => n.Text))} ; {string.Join(",", account2.Contacts.Select(c => c.Name))}");
 
             return Task.CompletedTask;
         }

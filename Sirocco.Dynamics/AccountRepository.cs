@@ -37,7 +37,8 @@ namespace Sirocco.Dynamics
                 Id = accountEntity.Id,
                 Name = accountEntity.GetAttributeValue<string>("Name"),
                 Notes = lazy ? new List<Note>() : RetrieveRelatedNotes(accountId).ToList(),
-                Parent = FetchAccount(accountEntity.Id)
+                Contacts = lazy ? new List<Contact>() : RetrieveRelatedContacts(accountId).ToList(),
+                Parent = lazy ? null : FetchAccount(accountEntity.Id)
             };
         }
 
@@ -66,7 +67,17 @@ namespace Sirocco.Dynamics
                 _organizationService.Associate("Account", accountId, new Relationship("account_notes"), new EntityReferenceCollection(new List<EntityReference> { savedNote.ToEntityReference() }));
             }
 
-            RetrieveRelatedNotes(accountId);
+            foreach (var contact in account.Contacts)
+            {
+                var contactId = _organizationService.Create(new Entity("Contact")
+                {
+                    Attributes = new AttributeCollection() {
+                        { "Name", contact.Name },
+                        { "PhoneNumber", contact.PhoneNumber },
+                        { "AccountId", accountId }
+                    }
+                });
+            }
 
             return accountId;
         }
@@ -76,6 +87,27 @@ namespace Sirocco.Dynamics
             var originalAccount = _organizationService.Retrieve("Account", account.Id, new ColumnSet(new string[] { "Name", "ParentId" }));
             originalAccount["Name"] = account.Name;
             originalAccount["ParentId"] = account.Parent?.Id;
+
+            foreach(var contact in account.Contacts)
+            {
+                if(contact.Id != default)
+                {
+                    var originalContact = _organizationService.Retrieve("Contact", contact.Id, new ColumnSet(new string[] { "Name", "ParentId" }));
+                    originalContact["Name"] = contact.Name;
+                    originalContact["PhoneNumber"] = contact.PhoneNumber;
+
+                    _organizationService.Update(originalContact);
+                } 
+                else
+                {
+                    _organizationService.Create(new Entity("Contact") {
+                        Attributes = new AttributeCollection() {
+                        { "Name", contact.Name },
+                        { "PhoneNumber", contact.PhoneNumber },
+                        { "AccountId", account.Id }
+                    }});
+                }
+            }
 
             _organizationService.Update(originalAccount);
         }
@@ -108,6 +140,31 @@ namespace Sirocco.Dynamics
             }
         }
 
+        private IEnumerable<Contact> RetrieveRelatedContacts(Guid accountId)
+        {
+            var filter = new FilterExpression();
+            filter.Conditions.Add(new ConditionExpression("AccountId", ConditionOperator.Equal, accountId));
+            QueryExpression relatedNotesQuery = new("Contact")
+            {
+                TopCount = 100
+            };
+            relatedNotesQuery.ColumnSet.AddColumns("Name");
+            relatedNotesQuery.ColumnSet.AddColumns("PhoneNumber");
+            relatedNotesQuery.Criteria.AddFilter(filter);
+
+            var relatedNotes = _organizationService.RetrieveMultiple(relatedNotesQuery);
+
+            foreach (var relatedNote in relatedNotes.Entities)
+            {
+                yield return new Contact()
+                {
+                    Id = relatedNote.Id,
+                    Name = relatedNote.GetAttributeValue<string>("Name"),
+                    PhoneNumber = relatedNote.GetAttributeValue<string>("PhoneNumber")
+                };
+            }
+        }
+
         private Account FetchAccount(Guid accountId)
         {
             var originalAccount = _organizationService.Retrieve("Account", accountId, new ColumnSet(new string[] { "Name", "ParentId" }));
@@ -117,5 +174,7 @@ namespace Sirocco.Dynamics
                 Name = originalAccount.GetAttributeValue<string>("Name")
             };
         }
+
+        //private void U
     }
 }
