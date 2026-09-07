@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FakeXrmEasy.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
@@ -171,7 +172,212 @@ namespace Sirocco.Dynamics
 
         public IList<Account> GetAll()
         {
-            
+            QueryExpression notesQuery = new("Note")
+            {
+                TopCount = 1000,
+                ColumnSet = new ColumnSet("Text", "ContactId")
+            };
+
+            var allnotes = _organizationService.RetrieveMultiple(notesQuery);
+
+            var query = new QueryExpression("Account")
+            {
+                ColumnSet = new ColumnSet("Name", "ParentId"),
+                TopCount = 1000
+            };
+
+            var link = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
+            {
+                Columns = new ColumnSet("Id", "Name", "PhoneNumber", "AccountId"),
+                EntityAlias = "contact"
+            };
+
+            link.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.LeftOuter)
+            {
+                Columns = new ColumnSet("Id", "Text", "ContactId"),
+                EntityAlias = "contact.note"
+            });
+
+            query.LinkEntities.Add(link);
+
+            var results = _organizationService.RetrieveMultiple(query);
+
+            return BuildFromResult(results);
+
+            //var accountsList = new List<Account>();
+
+            //foreach(var e in results.Entities)
+            //{
+            //    var truc = new StringBuilder(2000);
+            //    foreach(var a in e.Attributes)
+            //    {
+            //        truc.AppendLine($"{a.Key}:{a.Value}");
+            //    }
+
+            //    _logger.LogInformation(truc.ToString());
+            //}
+
+            //// Group by Account ID
+            //var accountGroups = results.Entities
+            //    .GroupBy(e => e.Id)
+            //    .ToDictionary(g => g.Key, g => g.ToList());
+
+            //foreach (var accountGroup in accountGroups.Values)
+            //{
+            //    var accountEntity = accountGroup.First();
+            //    var account = new Account
+            //    {
+            //        Id = accountEntity.Id,
+            //        Name = accountEntity.GetAttributeValue<string>("Name"),
+            //        Contacts = new List<Contact>()
+            //    };
+
+            //    // Group by Contact ID within each Account
+            //    //var contactGroups = accountGroup
+            //    //    .GroupBy(e => e.GetAttributeValue<AliasedValue>("ContactId"))
+            //    //    //.Where(g => g.Key != Guid.Empty)
+            //    //    .ToDictionary(g => g.Key, g => g.ToList());
+
+            //    //foreach (var contactGroup in contactGroups.Values)
+            //    //{
+            //    //    var contactId = GetAliasedValue<Guid>(contactGroup.First(), "contact", "Id");
+            //    //    var contact = new Contact
+            //    //    {
+            //    //        Id = contactId,
+            //    //        Name = GetAliasedValue<string>(contactGroup.First(), "contact", "Name"),
+            //    //        PhoneNumber = GetAliasedValue<string>(contactGroup.First(), "contact", "PhoneNumber"),
+            //    //        Notes = new List<Note>()
+            //    //    };
+
+            //    //    // Collect all Notes for this Contact
+            //    //    foreach (var row in contactGroup)
+            //    //    {
+            //    //        var noteId = GetAliasedValue<Guid>(row, "contact_note", "Id");
+            //    //        var noteText = GetAliasedValue<string>(row, "contact_note", "Text");
+
+            //    //        if (noteId != Guid.Empty)
+            //    //        {
+            //    //            contact.Notes.Add(new Note
+            //    //            {
+            //    //                Id = noteId,
+            //    //                Text = noteText
+            //    //            });
+            //    //        }
+            //    //    }
+
+            //    //    account.Contacts.Add(contact);
+            //    //}
+
+            //    accountsList.Add(account);
+            //}
+
+            //var query = new QueryExpression("Account")
+            //{
+            //    ColumnSet = new ColumnSet(new string[] { "Name", "ParentId" }),
+            //    TopCount = 100
+            //};
+
+            ////var link = new LinkEntity("Contact", "Account", "AccountId", "Id", JoinOperator.Inner);
+            //var link = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
+            //{
+            //    Columns = new ColumnSet("Name", "PhoneNumber"),
+            //    EntityAlias = "contact"
+            //};
+
+            //link.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.LeftOuter)
+            //{
+            //    Columns = new ColumnSet("Text"),
+            //    EntityAlias = "contact.note"
+            //});
+
+            //query.LinkEntities.Add(link);
+
+            //var truc = _organizationService.RetrieveMultiple(query);
+
+            //var accountsGrouped = truc.Entities
+            //    .GroupBy(e => e.Id)
+            //    .ToDictionary(g => g.Key, g => g.ToList());
+
+            //foreach (var account in truc.Entities)
+            //{
+            //    var contactGroups = account.Attributes
+            //        .GroupBy(e => e.GetAliasedValue<Guid>(e, "contact", "Id"))
+            //        .Where(g => g.Key != Guid.Empty)
+            //        .ToDictionary(g => g.Key, g => g.ToList());
+
+            //    //var bidule = account.GetAttributeValue<AliasedValue>("contact.Name");
+
+            //    //foreach (var attribute in account.Attributes)
+            //    //{
+            //    //    //if(attribute.Value is AliasedValue)
+            //    //    //{
+            //    //    //    _logger.LogInformation($"{attribute.Key}:{attribute.GetAttributeValue<AliasedValue>()}");
+            //    //    //}
+            //    //    //else
+            //    //    //{
+            //    //        _logger.LogInformation($"{attribute.Key}:{attribute.Value}");
+            //    //    //}
+            //    //}
+
+            //    ////foreach (var contact in account.RelatedEntities)
+            //    ////{
+            //    ////    _logger.LogInformation($"Account: {account.GetAttributeValue<string>("Name")}, Contact: ");
+            //    ////}
+            //}
+
+            //return Array.Empty<Account>();
+        }
+
+        private IList<Account> BuildFromResult(EntityCollection entityCollection)
+        {
+            Dictionary<Guid, Account> accounts = new();
+            Dictionary<Guid, Contact> contacts = new();
+
+            foreach (var entity in entityCollection.Entities) 
+            {
+                Account account;
+                Contact contact;
+
+                if(entity.Id == default)
+                {
+                    throw new NullReferenceException("entity.Id");
+                }
+
+                if (!accounts.TryGetValue(entity.Id, out account))
+                {
+                    account = new Account() { 
+                        Id = entity.Id,
+                        Name = entity.GetAttributeValue<string>("Name")
+                    };
+
+                    accounts.Add(account.Id, account);
+                }
+                //"Id", "Text", "ContactId"
+                //"Id", "Name", "PhoneNumber", "AccountId"
+                //var contactName
+                var contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
+                if (!contacts.TryGetValue(contactId, out contact))
+                {
+
+
+                    contact = new Contact()
+                    {
+                        Id = contactId,
+                        Name = (string)entity.GetAttributeValue<AliasedValue>("contact.Name").Value
+                    };
+
+                    account.Contacts.Add(contact);
+                    contacts.Add(contactId, contact);
+                }
+
+                //if()
+
+                //_logger.LogInformation(entity.GetAttributeValue<string>("Name"));
+            }
+
+            //_logger.LogInformation(entity.GetAttributeValue<string>("Name"));
+
+            return accounts.Values.ToList();
         }
 
         private IEnumerable<Note> RetrieveAccountNotes(Guid accountId)
