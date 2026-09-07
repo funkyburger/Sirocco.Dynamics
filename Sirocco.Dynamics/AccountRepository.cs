@@ -36,7 +36,7 @@ namespace Sirocco.Dynamics
             return new Account() { 
                 Id = accountEntity.Id,
                 Name = accountEntity.GetAttributeValue<string>("Name"),
-                Notes = lazy ? new List<Note>() : RetrieveContactNotes(accountId).ToList(),
+                Notes = lazy ? new List<Note>() : RetrieveAccountNotes(accountId).ToList(),
                 Contacts = lazy ? new List<Contact>() : RetrieveRelatedContacts(accountId).ToList(),
                 Parent = lazy ? null : FetchAccount(accountEntity.GetAttributeValue<Guid>("ParentId"))
             };
@@ -171,7 +171,7 @@ namespace Sirocco.Dynamics
 
         public IList<Account> GetAll()
         {
-            throw new NotImplementedException();
+            
         }
 
         private IEnumerable<Note> RetrieveAccountNotes(Guid accountId)
