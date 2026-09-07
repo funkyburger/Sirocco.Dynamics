@@ -1,10 +1,11 @@
-﻿using FakeXrmEasy.Extensions;
+using FakeXrmEasy.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using Sirocco.Dynamics.Model;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Security.Principal;
 using System.Text;
@@ -172,35 +173,68 @@ namespace Sirocco.Dynamics
 
         public IList<Account> GetAll()
         {
-            QueryExpression notesQuery = new("Note")
-            {
-                TopCount = 1000,
-                ColumnSet = new ColumnSet("Text", "ContactId")
-            };
+            //QueryExpression notesQuery = new("Note")
+            //{
+            //    TopCount = 1000,
+            //    ColumnSet = new ColumnSet("Text", "ContactId")
+            //};
 
-            var allnotes = _organizationService.RetrieveMultiple(notesQuery);
+            //QueryExpression contactQuery = new("Contact")
+            //{
+            //    TopCount = 1000,
+            //    ColumnSet = new ColumnSet("Name", "PhoneNumber", "AccountId")
+            //};
 
-            var query = new QueryExpression("Account")
-            {
-                ColumnSet = new ColumnSet("Name", "ParentId"),
-                TopCount = 1000
-            };
+            //var allContacts = _organizationService.RetrieveMultiple(contactQuery);
+            //var allnotes = _organizationService.RetrieveMultiple(notesQuery);
 
-            var link = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
-            {
-                Columns = new ColumnSet("Id", "Name", "PhoneNumber", "AccountId"),
-                EntityAlias = "contact"
-            };
 
-            link.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.LeftOuter)
-            {
-                Columns = new ColumnSet("Id", "Text", "ContactId"),
-                EntityAlias = "contact.note"
-            });
 
-            query.LinkEntities.Add(link);
+            //var query = new QueryExpression("Account")
+            //{
+            //    ColumnSet = new ColumnSet("Name", "ParentId"),
+            //    TopCount = 1000
+            //};
 
-            var results = _organizationService.RetrieveMultiple(query);
+            //var link = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
+            //{
+            //    Columns = new ColumnSet("Id", "Name", "PhoneNumber", "AccountId"),
+            //    EntityAlias = "contact"
+            //};
+
+            //link.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.Inner)
+            //{
+            //    Columns = new ColumnSet("Id", "Text", "ContactId"),
+            //    EntityAlias = "contact.note"
+            //});
+
+            //query.LinkEntities.Add(link);
+
+            //var results = _organizationService.RetrieveMultiple(query);
+
+            //var pageNumber = 1;
+            //var allResults = new EntityCollection();
+
+            //while (true)
+            //{
+            //    query.PageInfo = new PagingInfo
+            //    {
+            //        PageNumber = pageNumber,
+            //        Count = 5000
+            //    };
+            //    var results = _organizationService.RetrieveMultiple(query);
+            //    allResults.Entities.AddRange(results.Entities);
+            //    if (results.MoreRecords)
+            //    {
+            //        pageNumber++;
+            //    }
+            //    else
+            //    {
+            //        break;
+            //    }
+            //}
+
+            var results = FetchAllAccounts();
 
             return BuildFromResult(results);
 
@@ -332,20 +366,34 @@ namespace Sirocco.Dynamics
         {
             Dictionary<Guid, Account> accounts = new();
             Dictionary<Guid, Contact> contacts = new();
+            Dictionary<Guid, Guid> contactToAccountMap = new();
 
-            foreach (var entity in entityCollection.Entities) 
+            int i = 0;
+            int total = entityCollection.Entities.Count;
+
+            //var ziz = entityCollection.Entities.ToArray();
+            //List<Entity> bidule = new();
+
+            foreach (var entity in entityCollection.Entities)
+            //for(int i = 0; i < total; i++)
             {
+                //bidule.Add(entity);
+                //var entity = entityCollection[i];
+                _logger.LogInformation($"titi");
+                Console.WriteLine($"{i}/{total}");
+
                 Account account;
                 Contact contact;
 
-                if(entity.Id == default)
+                if (entity.Id == default)
                 {
                     throw new NullReferenceException("entity.Id");
                 }
 
                 if (!accounts.TryGetValue(entity.Id, out account))
                 {
-                    account = new Account() { 
+                    account = new Account()
+                    {
                         Id = entity.Id,
                         Name = entity.GetAttributeValue<string>("Name")
                     };
@@ -358,26 +406,108 @@ namespace Sirocco.Dynamics
                 var contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
                 if (!contacts.TryGetValue(contactId, out contact))
                 {
-
-
                     contact = new Contact()
                     {
                         Id = contactId,
                         Name = (string)entity.GetAttributeValue<AliasedValue>("contact.Name").Value
                     };
 
-                    account.Contacts.Add(contact);
+                    var accountId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
+                    if (!contactToAccountMap.ContainsKey(contactId))
+                    {
+                        contactToAccountMap.Add(contactId, accountId);
+                    }
+
                     contacts.Add(contactId, contact);
                 }
 
-                //if()
+                ////if()
 
-                //_logger.LogInformation(entity.GetAttributeValue<string>("Name"));
+                ////_logger.LogInformation(entity.GetAttributeValue<string>("Name"));
+                i++;
             }
 
+            foreach(var kvp in contactToAccountMap)
+            {
+                  accounts[kvp.Value].Contacts.Add(contacts[kvp.Key]);
+            }
+
+            //foreach (var entity in entityCollection.Entities)
+            //{
+            //    Account account;
+            //    Contact contact;
+
+            //    //if (!accounts.TryGetValue(entity.Id, out account))
+            //    //{
+            //    //    throw new Exception($"Couldn't find account with id:{entity.Id}");
+            //    //}
+
+            //    var contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
+            //    if (!contacts.TryGetValue(contactId, out contact))
+            //    {
+            //        throw new Exception($"Couldn't find contact with id:{contactId}");
+            //    }
+
+            //    var accountId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
+            //    accounts[accountId].Contacts.Add(contact);
+            //}
+
+            //_logger.LogInformation($"Processed entities: {bidule.Count}");
             //_logger.LogInformation(entity.GetAttributeValue<string>("Name"));
 
             return accounts.Values.ToList();
+        }
+
+        private EntityCollection FetchAllAccounts()
+        {
+            var pageNumber = 1;
+            var allResults = new EntityCollection();
+            var maxPages = 1000; // Safety limit
+            var hasMoreRecords = true;
+            string pagingCookie = null;
+
+            var query = new QueryExpression("Account")
+            {
+                ColumnSet = new ColumnSet("Name", "ParentId")
+            };
+
+            var link = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
+            {
+                Columns = new ColumnSet("Id", "Name", "PhoneNumber", "AccountId"),
+                EntityAlias = "contact"
+            };
+
+            link.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.Inner)
+            {
+                Columns = new ColumnSet("Id", "Text", "ContactId"),
+                EntityAlias = "contact.note"
+            });
+
+            query.LinkEntities.Add(link);
+
+            while (hasMoreRecords && pageNumber <= maxPages)
+            {
+                query.PageInfo = new PagingInfo
+                {
+                    PageNumber = pageNumber,
+                    Count = 100,
+                    PagingCookie = pagingCookie
+                };
+
+                var results = _organizationService.RetrieveMultiple(query);
+                allResults.Entities.AddRange(results.Entities);
+
+                hasMoreRecords = results.MoreRecords;
+                pagingCookie = results.PagingCookie;
+                pageNumber++;
+
+                if (pageNumber > maxPages)
+                {
+                    throw new Exception($"Maximum page limit ({maxPages}) reached");
+                }
+            }
+
+            return allResults;
         }
 
         private IEnumerable<Note> RetrieveAccountNotes(Guid accountId)
