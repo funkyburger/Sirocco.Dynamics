@@ -185,6 +185,7 @@ namespace Sirocco.Dynamics
             Dictionary<Guid, Note> notes = new();
             Dictionary<Guid, Guid> contactToAccountMap = new();
             Dictionary<Guid, Guid> notesToContactMap = new();
+            Dictionary<Guid, Guid> notesToAccountMap = new();
 
             foreach (var entity in entityCollection.Entities)
             {
@@ -227,21 +228,48 @@ namespace Sirocco.Dynamics
                     contacts.Add(contactId, contact);
                 }
 
-                var noteId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.note.Noteid").Value;
-                if (!notes.TryGetValue(noteId, out note))
+                var accountNoteId = (Guid)entity.GetAttributeValue<AliasedValue>("note.Noteid").Value;
+                if (accountNoteId != default &&
+                    entity.Attributes.ContainsKey("note.AccountId"))
                 {
                     note = new()
                     {
-                        Id = noteId,
+                        Id = accountNoteId,
+                        Text = (string)entity.GetAttributeValue<AliasedValue>("note.Text").Value
+                    };
+
+                    if (!notes.ContainsKey(accountNoteId))
+                    {
+                        notes.Add(accountNoteId, note);
+                    }
+                    
+                    var accountId = (Guid)entity.GetAttributeValue<AliasedValue>("note.AccountId").Value;
+                    if (!notesToAccountMap.ContainsKey(accountNoteId))
+                    {
+                        notesToAccountMap.Add(accountNoteId, accountId);
+                    }
+                }
+
+                var contactNoteId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.note.Noteid").Value;
+                if (contactNoteId != default &&
+                    entity.Attributes.ContainsKey("contact.note.ContactId"))
+                {
+                    note = new()
+                    {
+                        Id = contactNoteId,
                         Text = (string)entity.GetAttributeValue<AliasedValue>("contact.note.Text").Value
                     };
 
-                    if (!notesToContactMap.ContainsKey(noteId))
+                    if (!notes.ContainsKey(contactNoteId))
                     {
-                        notesToContactMap.Add(noteId, contactId);
+                        notes.Add(contactNoteId, note);
                     }
 
-                    notes.Add(noteId, note);
+                    contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.note.ContactId").Value;
+                    if (!notesToContactMap.ContainsKey(contactId))
+                    {
+                        notesToContactMap.Add(contactId, contactNoteId);
+                    }
                 }
             }
 
@@ -252,9 +280,14 @@ namespace Sirocco.Dynamics
             }
 
             // Mapping notes
-            foreach(var kvp in notesToContactMap)
+            foreach (var kvp in notesToContactMap)
             {
-                contacts[kvp.Value].Notes.Add(notes[kvp.Key]);
+                contacts[kvp.Key].Notes.Add(notes[kvp.Value]);
+            }
+
+            foreach (var kvp in notesToAccountMap)
+            {
+                accounts[kvp.Value].Notes.Add(notes[kvp.Key]);
             }
 
             return accounts.Values.ToList();
@@ -273,19 +306,27 @@ namespace Sirocco.Dynamics
                 ColumnSet = new ColumnSet("Name", "ParentId")
             };
 
-            var link = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
+            var contactLink = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
             {
                 Columns = new ColumnSet("Contactid", "Name", "PhoneNumber", "AccountId"),
                 EntityAlias = "contact"
             };
 
-            link.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.Inner)
+            // Link the Note entity to the Contact entity
+            contactLink.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.Inner)
             {
                 Columns = new ColumnSet("Noteid", "Text", "ContactId"),
                 EntityAlias = "contact.note"
             });
 
-            query.LinkEntities.Add(link);
+            var noteLink = new LinkEntity("Account", "Note", "Id", "AccountId", JoinOperator.Inner)
+            {
+                Columns = new ColumnSet("Noteid", "Text", "AccountId"),
+                EntityAlias = "note"
+            };
+
+            query.LinkEntities.Add(contactLink);
+            query.LinkEntities.Add(noteLink);
 
             while (hasMoreRecords && pageNumber <= maxPages)
             {
@@ -303,7 +344,7 @@ namespace Sirocco.Dynamics
                 pagingCookie = results.PagingCookie;
                 pageNumber++;
 
-                if (pageNumber > maxPages)
+                if (pageNumber >= maxPages)
                 {
                     throw new Exception($"Maximum page limit ({maxPages}) reached");
                 }
