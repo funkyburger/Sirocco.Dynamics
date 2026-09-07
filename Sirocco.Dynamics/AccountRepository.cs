@@ -186,6 +186,7 @@ namespace Sirocco.Dynamics
             Dictionary<Guid, Guid> contactToAccountMap = new();
             Dictionary<Guid, Guid> notesToContactMap = new();
             Dictionary<Guid, Guid> notesToAccountMap = new();
+            Dictionary<Guid, Guid> accountToParentMap = new();
 
             foreach (var entity in entityCollection.Entities)
             {
@@ -271,6 +272,15 @@ namespace Sirocco.Dynamics
                         notesToContactMap.Add(contactId, contactNoteId);
                     }
                 }
+
+                if (entity.Attributes.ContainsKey("ParentId") && !accountToParentMap.ContainsKey(entity.Id)) 
+                {
+                    var parentId = entity.GetAttributeValue<Guid>("ParentId");
+                    if (!accountToParentMap.ContainsKey(entity.Id))
+                    {
+                        accountToParentMap.Add(entity.Id, parentId);
+                    }
+                }
             }
 
             // Mapping Contacts
@@ -288,6 +298,12 @@ namespace Sirocco.Dynamics
             foreach (var kvp in notesToAccountMap)
             {
                 accounts[kvp.Value].Notes.Add(notes[kvp.Key]);
+            }
+
+            // Mapping parents
+            foreach (var kvp in accountToParentMap)
+            {
+                accounts[kvp.Key].Parent = accounts[kvp.Value];
             }
 
             return accounts.Values.ToList();
@@ -325,8 +341,15 @@ namespace Sirocco.Dynamics
                 EntityAlias = "note"
             };
 
+            var parentLink = new LinkEntity("Account", "Account", "ParentId", "Id", JoinOperator.Inner)
+            {
+                Columns = new ColumnSet("Name"),
+                EntityAlias = "parent"
+            };
+
             query.LinkEntities.Add(contactLink);
             query.LinkEntities.Add(noteLink);
+            query.LinkEntities.Add(parentLink);
 
             while (hasMoreRecords && pageNumber <= maxPages)
             {
