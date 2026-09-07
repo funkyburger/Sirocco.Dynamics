@@ -36,7 +36,7 @@ namespace Sirocco.Dynamics
             return new Account() { 
                 Id = accountEntity.Id,
                 Name = accountEntity.GetAttributeValue<string>("Name"),
-                Notes = lazy ? new List<Note>() : RetrieveRelatedNotes(accountId).ToList(),
+                Notes = lazy ? new List<Note>() : RetrieveContactNotes(accountId).ToList(),
                 Contacts = lazy ? new List<Contact>() : RetrieveRelatedContacts(accountId).ToList(),
                 Parent = lazy ? null : FetchAccount(accountEntity.GetAttributeValue<Guid>("ParentId"))
             };
@@ -77,6 +77,24 @@ namespace Sirocco.Dynamics
                         { "AccountId", accountId }
                     }
                 });
+
+                foreach(var note in contact.Notes)
+                {
+                    if (note.Id != default)
+                    {
+                        var originalNote = _organizationService.Retrieve("Note", note.Id, new ColumnSet("Text", "ContactId"));
+                        originalNote["Text"] = note.Text;
+                    }
+                    else
+                    {
+                        _organizationService.Create(new Entity("Note") {
+                            Attributes = new AttributeCollection() {
+                                { "Text", note.Text },
+                                { "ContactId", contactId }
+                            }
+                        });
+                    }
+                }
             }
 
             return accountId;
@@ -127,6 +145,25 @@ namespace Sirocco.Dynamics
                         { "AccountId", account.Id }
                     }});
                 }
+
+                foreach (var note in contact.Notes)
+                {
+                    if (note.Id != default)
+                    {
+                        var originalNote = _organizationService.Retrieve("Note", note.Id, new ColumnSet(new string[] { "Text", "ContactId" }));
+                        originalNote["Text"] = note.Text;
+                        _organizationService.Update(originalNote);
+                    }
+                    else
+                    {
+                        _organizationService.Create(new Entity("Note") {
+                            Attributes = new AttributeCollection() {
+                                { "Text", note.Text },
+                                { "ContactId", contact.Id }
+                            }
+                        });
+                    }
+                }
             }
 
             _organizationService.Update(originalAccount);
@@ -137,10 +174,21 @@ namespace Sirocco.Dynamics
             throw new NotImplementedException();
         }
 
-        private IEnumerable<Note> RetrieveRelatedNotes(Guid accountId)
+        private IEnumerable<Note> RetrieveAccountNotes(Guid accountId)
+            => RetrieveRelatedNotes(accountId, "AccountId");
+
+        private IEnumerable<Note> RetrieveContactNotes(Guid accountId)
+            => RetrieveRelatedNotes(accountId, "ContactId");
+
+        private IEnumerable<Note> RetrieveRelatedNotes(Guid accountId, string mappingProperty)
         {
+            if(accountId == default)
+            {
+                yield break;
+            }
+
             var filter = new FilterExpression();
-            filter.Conditions.Add(new ConditionExpression("AccountId", ConditionOperator.Equal, accountId));
+            filter.Conditions.Add(new ConditionExpression(mappingProperty, ConditionOperator.Equal, accountId));
             QueryExpression relatedNotesQuery = new("Note")
             {
                 TopCount = 100
@@ -174,13 +222,14 @@ namespace Sirocco.Dynamics
 
             var relatedNotes = _organizationService.RetrieveMultiple(relatedNotesQuery);
 
-            foreach (var relatedNote in relatedNotes.Entities)
+            foreach (var contact in relatedNotes.Entities)
             {
                 yield return new Contact()
                 {
-                    Id = relatedNote.Id,
-                    Name = relatedNote.GetAttributeValue<string>("Name"),
-                    PhoneNumber = relatedNote.GetAttributeValue<string>("PhoneNumber")
+                    Id = contact.Id,
+                    Name = contact.GetAttributeValue<string>("Name"),
+                    PhoneNumber = contact.GetAttributeValue<string>("PhoneNumber"),
+                    Notes = RetrieveContactNotes(contact.Id).ToList()
                 };
             }
         }

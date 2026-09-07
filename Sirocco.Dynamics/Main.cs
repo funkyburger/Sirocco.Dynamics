@@ -58,6 +58,9 @@ namespace Sirocco.Dynamics
             // 10. Create a note and associate it with the parent account
             CreateNoteForAccount(account1Id, account2Id);
 
+            // 11. Create two notes and associate them with the second contact
+            AddOtherNotes(account1Id, account2Id);
+
             LogAccountDetails(_accountRepository.GetById(account1Id));
             LogAccountDetails(_accountRepository.GetById(account2Id));
 
@@ -106,6 +109,24 @@ namespace Sirocco.Dynamics
             account1.Notes.Add(new Note() { Text = "This is a note for the parent account." });
 
             _accountRepository.Update(account1);
+        }
+
+        private void AddOtherNotes(Guid account1Id, Guid account2Id)
+            => PerformUpdate(account1Id, account2Id, (account1, account2) =>
+            {
+                account2.Contacts.First().Notes.Add(new Note() { Text = "Contact note 1." });
+                account2.Contacts.First().Notes.Add(new Note() { Text = "Contact note 2." });
+            });
+
+        private void PerformUpdate(Guid account1Id, Guid account2Id, Action<Account, Account> updateAction)
+        {
+            var account1 = _accountRepository.GetById(account1Id);
+            var account2 = _accountRepository.GetById(account2Id);
+
+            updateAction(account1, account2);
+
+            _accountRepository.Update(account1);
+            _accountRepository.Update(account2);
         }
 
         private void LogAccountDetails(Account account)
