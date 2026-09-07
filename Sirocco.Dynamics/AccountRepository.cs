@@ -173,217 +173,24 @@ namespace Sirocco.Dynamics
 
         public IList<Account> GetAll()
         {
-            //QueryExpression notesQuery = new("Note")
-            //{
-            //    TopCount = 1000,
-            //    ColumnSet = new ColumnSet("Text", "ContactId")
-            //};
-
-            //QueryExpression contactQuery = new("Contact")
-            //{
-            //    TopCount = 1000,
-            //    ColumnSet = new ColumnSet("Name", "PhoneNumber", "AccountId")
-            //};
-
-            //var allContacts = _organizationService.RetrieveMultiple(contactQuery);
-            //var allnotes = _organizationService.RetrieveMultiple(notesQuery);
-
-
-
-            //var query = new QueryExpression("Account")
-            //{
-            //    ColumnSet = new ColumnSet("Name", "ParentId"),
-            //    TopCount = 1000
-            //};
-
-            //var link = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
-            //{
-            //    Columns = new ColumnSet("Id", "Name", "PhoneNumber", "AccountId"),
-            //    EntityAlias = "contact"
-            //};
-
-            //link.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.Inner)
-            //{
-            //    Columns = new ColumnSet("Id", "Text", "ContactId"),
-            //    EntityAlias = "contact.note"
-            //});
-
-            //query.LinkEntities.Add(link);
-
-            //var results = _organizationService.RetrieveMultiple(query);
-
-            //var pageNumber = 1;
-            //var allResults = new EntityCollection();
-
-            //while (true)
-            //{
-            //    query.PageInfo = new PagingInfo
-            //    {
-            //        PageNumber = pageNumber,
-            //        Count = 5000
-            //    };
-            //    var results = _organizationService.RetrieveMultiple(query);
-            //    allResults.Entities.AddRange(results.Entities);
-            //    if (results.MoreRecords)
-            //    {
-            //        pageNumber++;
-            //    }
-            //    else
-            //    {
-            //        break;
-            //    }
-            //}
-
             var results = FetchAllAccounts();
 
             return BuildFromResult(results);
-
-            //var accountsList = new List<Account>();
-
-            //foreach(var e in results.Entities)
-            //{
-            //    var truc = new StringBuilder(2000);
-            //    foreach(var a in e.Attributes)
-            //    {
-            //        truc.AppendLine($"{a.Key}:{a.Value}");
-            //    }
-
-            //    _logger.LogInformation(truc.ToString());
-            //}
-
-            //// Group by Account ID
-            //var accountGroups = results.Entities
-            //    .GroupBy(e => e.Id)
-            //    .ToDictionary(g => g.Key, g => g.ToList());
-
-            //foreach (var accountGroup in accountGroups.Values)
-            //{
-            //    var accountEntity = accountGroup.First();
-            //    var account = new Account
-            //    {
-            //        Id = accountEntity.Id,
-            //        Name = accountEntity.GetAttributeValue<string>("Name"),
-            //        Contacts = new List<Contact>()
-            //    };
-
-            //    // Group by Contact ID within each Account
-            //    //var contactGroups = accountGroup
-            //    //    .GroupBy(e => e.GetAttributeValue<AliasedValue>("ContactId"))
-            //    //    //.Where(g => g.Key != Guid.Empty)
-            //    //    .ToDictionary(g => g.Key, g => g.ToList());
-
-            //    //foreach (var contactGroup in contactGroups.Values)
-            //    //{
-            //    //    var contactId = GetAliasedValue<Guid>(contactGroup.First(), "contact", "Id");
-            //    //    var contact = new Contact
-            //    //    {
-            //    //        Id = contactId,
-            //    //        Name = GetAliasedValue<string>(contactGroup.First(), "contact", "Name"),
-            //    //        PhoneNumber = GetAliasedValue<string>(contactGroup.First(), "contact", "PhoneNumber"),
-            //    //        Notes = new List<Note>()
-            //    //    };
-
-            //    //    // Collect all Notes for this Contact
-            //    //    foreach (var row in contactGroup)
-            //    //    {
-            //    //        var noteId = GetAliasedValue<Guid>(row, "contact_note", "Id");
-            //    //        var noteText = GetAliasedValue<string>(row, "contact_note", "Text");
-
-            //    //        if (noteId != Guid.Empty)
-            //    //        {
-            //    //            contact.Notes.Add(new Note
-            //    //            {
-            //    //                Id = noteId,
-            //    //                Text = noteText
-            //    //            });
-            //    //        }
-            //    //    }
-
-            //    //    account.Contacts.Add(contact);
-            //    //}
-
-            //    accountsList.Add(account);
-            //}
-
-            //var query = new QueryExpression("Account")
-            //{
-            //    ColumnSet = new ColumnSet(new string[] { "Name", "ParentId" }),
-            //    TopCount = 100
-            //};
-
-            ////var link = new LinkEntity("Contact", "Account", "AccountId", "Id", JoinOperator.Inner);
-            //var link = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
-            //{
-            //    Columns = new ColumnSet("Name", "PhoneNumber"),
-            //    EntityAlias = "contact"
-            //};
-
-            //link.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.LeftOuter)
-            //{
-            //    Columns = new ColumnSet("Text"),
-            //    EntityAlias = "contact.note"
-            //});
-
-            //query.LinkEntities.Add(link);
-
-            //var truc = _organizationService.RetrieveMultiple(query);
-
-            //var accountsGrouped = truc.Entities
-            //    .GroupBy(e => e.Id)
-            //    .ToDictionary(g => g.Key, g => g.ToList());
-
-            //foreach (var account in truc.Entities)
-            //{
-            //    var contactGroups = account.Attributes
-            //        .GroupBy(e => e.GetAliasedValue<Guid>(e, "contact", "Id"))
-            //        .Where(g => g.Key != Guid.Empty)
-            //        .ToDictionary(g => g.Key, g => g.ToList());
-
-            //    //var bidule = account.GetAttributeValue<AliasedValue>("contact.Name");
-
-            //    //foreach (var attribute in account.Attributes)
-            //    //{
-            //    //    //if(attribute.Value is AliasedValue)
-            //    //    //{
-            //    //    //    _logger.LogInformation($"{attribute.Key}:{attribute.GetAttributeValue<AliasedValue>()}");
-            //    //    //}
-            //    //    //else
-            //    //    //{
-            //    //        _logger.LogInformation($"{attribute.Key}:{attribute.Value}");
-            //    //    //}
-            //    //}
-
-            //    ////foreach (var contact in account.RelatedEntities)
-            //    ////{
-            //    ////    _logger.LogInformation($"Account: {account.GetAttributeValue<string>("Name")}, Contact: ");
-            //    ////}
-            //}
-
-            //return Array.Empty<Account>();
         }
 
         private IList<Account> BuildFromResult(EntityCollection entityCollection)
         {
             Dictionary<Guid, Account> accounts = new();
             Dictionary<Guid, Contact> contacts = new();
+            Dictionary<Guid, Note> notes = new();
             Dictionary<Guid, Guid> contactToAccountMap = new();
-
-            int i = 0;
-            int total = entityCollection.Entities.Count;
-
-            //var ziz = entityCollection.Entities.ToArray();
-            //List<Entity> bidule = new();
+            Dictionary<Guid, Guid> notesToContactMap = new();
 
             foreach (var entity in entityCollection.Entities)
-            //for(int i = 0; i < total; i++)
             {
-                //bidule.Add(entity);
-                //var entity = entityCollection[i];
-                _logger.LogInformation($"titi");
-                Console.WriteLine($"{i}/{total}");
-
                 Account account;
                 Contact contact;
+                Note note;
 
                 if (entity.Id == default)
                 {
@@ -400,16 +207,15 @@ namespace Sirocco.Dynamics
 
                     accounts.Add(account.Id, account);
                 }
-                //"Id", "Text", "ContactId"
-                //"Id", "Name", "PhoneNumber", "AccountId"
-                //var contactName
-                var contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
+
+                var contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.Contactid").Value;
                 if (!contacts.TryGetValue(contactId, out contact))
                 {
                     contact = new Contact()
                     {
                         Id = contactId,
-                        Name = (string)entity.GetAttributeValue<AliasedValue>("contact.Name").Value
+                        Name = (string)entity.GetAttributeValue<AliasedValue>("contact.Name").Value,
+                        PhoneNumber = (string)entity.GetAttributeValue<AliasedValue>("contact.PhoneNumber").Value
                     };
 
                     var accountId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
@@ -421,39 +227,35 @@ namespace Sirocco.Dynamics
                     contacts.Add(contactId, contact);
                 }
 
-                ////if()
+                var noteId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.note.Noteid").Value;
+                if (!notes.TryGetValue(noteId, out note))
+                {
+                    note = new()
+                    {
+                        Id = noteId,
+                        Text = (string)entity.GetAttributeValue<AliasedValue>("contact.note.Text").Value
+                    };
 
-                ////_logger.LogInformation(entity.GetAttributeValue<string>("Name"));
-                i++;
+                    if (!notesToContactMap.ContainsKey(contactId))
+                    {
+                        notesToContactMap.Add(contactId, noteId);
+                    }
+
+                    notes.Add(noteId, note);
+                }
             }
 
+            // Mapping Contacts
             foreach(var kvp in contactToAccountMap)
             {
-                  accounts[kvp.Value].Contacts.Add(contacts[kvp.Key]);
+                accounts[kvp.Value].Contacts.Add(contacts[kvp.Key]);
             }
 
-            //foreach (var entity in entityCollection.Entities)
-            //{
-            //    Account account;
-            //    Contact contact;
-
-            //    //if (!accounts.TryGetValue(entity.Id, out account))
-            //    //{
-            //    //    throw new Exception($"Couldn't find account with id:{entity.Id}");
-            //    //}
-
-            //    var contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
-            //    if (!contacts.TryGetValue(contactId, out contact))
-            //    {
-            //        throw new Exception($"Couldn't find contact with id:{contactId}");
-            //    }
-
-            //    var accountId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
-            //    accounts[accountId].Contacts.Add(contact);
-            //}
-
-            //_logger.LogInformation($"Processed entities: {bidule.Count}");
-            //_logger.LogInformation(entity.GetAttributeValue<string>("Name"));
+            // Mapping notes
+            foreach(var kvp in notesToContactMap)
+            {
+                contacts[kvp.Key].Notes.Add(notes[kvp.Value]);
+            }
 
             return accounts.Values.ToList();
         }
@@ -473,13 +275,13 @@ namespace Sirocco.Dynamics
 
             var link = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
             {
-                Columns = new ColumnSet("Id", "Name", "PhoneNumber", "AccountId"),
+                Columns = new ColumnSet("Contactid", "Name", "PhoneNumber", "AccountId"),
                 EntityAlias = "contact"
             };
 
             link.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.Inner)
             {
-                Columns = new ColumnSet("Id", "Text", "ContactId"),
+                Columns = new ColumnSet("Noteid", "Text", "ContactId"),
                 EntityAlias = "contact.note"
             });
 
