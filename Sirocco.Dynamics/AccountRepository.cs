@@ -236,9 +236,9 @@ namespace Sirocco.Dynamics
                         Text = (string)entity.GetAttributeValue<AliasedValue>("contact.note.Text").Value
                     };
 
-                    if (!notesToContactMap.ContainsKey(contactId))
+                    if (!notesToContactMap.ContainsKey(noteId))
                     {
-                        notesToContactMap.Add(contactId, noteId);
+                        notesToContactMap.Add(noteId, contactId);
                     }
 
                     notes.Add(noteId, note);
@@ -254,7 +254,7 @@ namespace Sirocco.Dynamics
             // Mapping notes
             foreach(var kvp in notesToContactMap)
             {
-                contacts[kvp.Key].Notes.Add(notes[kvp.Value]);
+                contacts[kvp.Value].Notes.Add(notes[kvp.Key]);
             }
 
             return accounts.Values.ToList();
