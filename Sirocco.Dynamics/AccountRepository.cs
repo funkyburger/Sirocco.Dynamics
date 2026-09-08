@@ -187,7 +187,6 @@ namespace Sirocco.Dynamics
                 Account account;
                 Contact contact;
                 Note note;
-                Guid accountNoteId;
 
                 if (entity.Id == default)
                 {
@@ -205,9 +204,9 @@ namespace Sirocco.Dynamics
                     accounts.Add(account.Id, account);
                 }
 
-                Guid contactId;
-                if (entity.TryGetAttributeValue("contact.Contactid", out contactId))
+                if (entity.Attributes.ContainsKey("contact.Contactid"))
                 {
+                    var contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.Contactid").Value;
                     if (!contacts.TryGetValue(contactId, out contact))
                     {
                         contact = new Contact()
@@ -226,9 +225,9 @@ namespace Sirocco.Dynamics
                         contacts.Add(contactId, contact);
                     }
 
-                    Guid contactNoteId;
-                    if(entity.TryGetAttributeValue("contact.note.Noteid", out contactNoteId))
+                    if (entity.Attributes.ContainsKey("contact.note.Noteid"))
                     {
+                        var contactNoteId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.note.Noteid").Value;
                         if (contactNoteId != default &&
                         entity.Attributes.ContainsKey("contact.note.ContactId"))
                         {
@@ -252,8 +251,9 @@ namespace Sirocco.Dynamics
                     }
                 }
                 
-                if(entity.TryGetAttributeValue("note.Noteid", out accountNoteId))
+                if(entity.Attributes.ContainsKey("note.Noteid"))
                 {
+                    var accountNoteId = (Guid)entity.GetAttributeValue<AliasedValue>("note.Noteid").Value;
                     if (accountNoteId != default &&
                     entity.Attributes.ContainsKey("note.AccountId"))
                     {
@@ -289,7 +289,10 @@ namespace Sirocco.Dynamics
             // Mapping Contacts
             foreach(var kvp in contactToAccountMap)
             {
-                accounts[kvp.Value].Contacts.Add(contacts[kvp.Key]);
+                if (accounts.ContainsKey(kvp.Value))
+                {
+                    accounts[kvp.Value].Contacts.Add(contacts[kvp.Key]);
+                }
             }
 
             // Mapping notes
@@ -300,13 +303,16 @@ namespace Sirocco.Dynamics
 
             foreach (var kvp in notesToAccountMap)
             {
-                accounts[kvp.Value].Notes.Add(notes[kvp.Key]);
+                if (accounts.ContainsKey(kvp.Value))
+                {
+                    accounts[kvp.Value].Notes.Add(notes[kvp.Key]);
+                }
             }
 
             // Mapping parents
             foreach (var kvp in accountToParentMap)
             {
-                accounts[kvp.Key].Parent = accounts[kvp.Value];
+                accounts[kvp.Key].Parent = FetchAccount(kvp.Value);
             }
 
             return accounts.Values.ToList();
@@ -358,18 +364,11 @@ namespace Sirocco.Dynamics
             {
                 query.Criteria = new FilterExpression()
                 {
-                    //Conditions = { new ConditionExpression("Id", ConditionOperator.Equal, entityId) },
                     Filters = { new FilterExpression()
                     {
-                        Conditions = { new ConditionExpression("Id", ConditionOperator.Equal, entityId) }
+                        Conditions = { new ConditionExpression("Accountid", ConditionOperator.Equal, entityId) }
                     }}
                 };
-
-                //query.Criteria.AddFilter(new FilterExpression() { 
-                //    Conditions = { new ConditionExpression("Id", ConditionOperator.Equal, entityId) }
-                //});
-
-                //query.Criteria.AddCondition("Id", ConditionOperator.Equal, entityId);
             }
 
             while (hasMoreRecords && pageNumber <= maxPages)
