@@ -10,4 +10,4 @@ services.AddScoped<IAccountRepository, AccountRepository>();
 services.AddLogging(configure => configure.AddConsole());
 var serviceProvider = services.BuildServiceProvider();
 
-await serviceProvider.GetService<IMain>()!.Run();
+serviceProvider.GetService<IMain>()!.Run();

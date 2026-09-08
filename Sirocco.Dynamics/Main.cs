@@ -13,23 +13,21 @@ namespace Sirocco.Dynamics
 {
     internal interface IMain
     {
-        Task Run();
+        void Run();
     }
 
     internal class Main : IMain
     {
         private readonly ILogger<Main> _logger;
-        private readonly IOrganizationService _organizationService;
         private readonly IAccountRepository _accountRepository;
 
-        public Main(ILogger<Main> logger, IOrganizationService organizationService, IAccountRepository accountRepository)
+        public Main(ILogger<Main> logger, IAccountRepository accountRepository)
         {
             _logger = logger;
-            _organizationService = organizationService;
             _accountRepository = accountRepository;
         }
 
-        public Task Run()
+        public void Run()
         {
             _logger.LogInformation("Job started.");
 
@@ -61,55 +59,38 @@ namespace Sirocco.Dynamics
             // 11. Create two notes and associate them with the second contact
             AddOtherNotes(account1Id, account2Id);
 
+            // 12. Query the database for all contacts and all accounts and all notes. This should be done in one query. Create a list containing “name” (account or contact) and “notetext”.
+            var all = _accountRepository.GetAll();
+
             LogAccountDetails(_accountRepository.GetById(account1Id));
             LogAccountDetails(_accountRepository.GetById(account2Id));
-
-            return Task.CompletedTask;
         }
 
         private void SetParentRelation(Guid account1Id, Guid account2Id)
-        {
-            var account1 = _accountRepository.GetById(account1Id);
-            var account2 = _accountRepository.GetById(account2Id);
-
-            account2.Parent = account1;
-
-            _accountRepository.Update(account2);
-        }
+            => PerformUpdate(account1Id, account2Id, (account1, account2) =>
+            {
+                account2.Parent = account1;
+            });
 
         private void SetContacts(Guid account1Id, Guid account2Id)
-        {
-            var account1 = _accountRepository.GetById(account1Id);
-            var account2 = _accountRepository.GetById(account2Id);
-
-            account1.Contacts.Add(new Contact() { Name = "Contact 1", PhoneNumber = "123-456-7890" });
-            account2.Contacts.Add(new Contact() { Name = "Contact 2", PhoneNumber = "987-654-3210" });
-
-            _accountRepository.Update(account1);
-            _accountRepository.Update(account2);
-        }
+            => PerformUpdate(account1Id, account2Id, (account1, account2) =>
+            {
+                account1.Contacts.Add(new Contact() { Name = "Contact 1", PhoneNumber = "123-456-7890" });
+                account2.Contacts.Add(new Contact() { Name = "Contact 2", PhoneNumber = "987-654-3210" });
+            });
 
         private void UpdateAccountAndContact(Guid account1Id, Guid account2Id)
-        {
-            var account1 = _accountRepository.GetById(account1Id);
-            var account2 = _accountRepository.GetById(account2Id);
-
-            account1.Name = "Updated Parent Account";
-            account2.Contacts.First().PhoneNumber = "111-222-3333";
-
-            _accountRepository.Update(account1);
-            _accountRepository.Update(account2);
-        }
+            => PerformUpdate(account1Id, account2Id, (account1, account2) =>
+            {
+                account1.Name = "Updated Parent Account";
+                account2.Contacts.First().PhoneNumber = "111-222-3333";
+            });
 
         private void CreateNoteForAccount(Guid account1Id, Guid account2Id)
-        {
-            var account1 = _accountRepository.GetById(account1Id);
-            var account2 = _accountRepository.GetById(account2Id);
-
-            account1.Notes.Add(new Note() { Text = "This is a note for the parent account." });
-
-            _accountRepository.Update(account1);
-        }
+            => PerformUpdate(account1Id, account2Id, (account1, account2) =>
+            {
+                account1.Notes.Add(new Note() { Text = "This is a note for the parent account." });
+            });
 
         private void AddOtherNotes(Guid account1Id, Guid account2Id)
             => PerformUpdate(account1Id, account2Id, (account1, account2) =>
