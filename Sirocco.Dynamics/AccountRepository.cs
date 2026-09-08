@@ -14,7 +14,7 @@ namespace Sirocco.Dynamics
 {
     internal interface IAccountRepository
     {
-        Account GetById(Guid accountId, bool lazy = false);
+        Account? GetById(Guid accountId);
         Guid Create(Account account);
         void Update(Account account);
         IList<Account> GetAll();
@@ -31,17 +31,11 @@ namespace Sirocco.Dynamics
             _organizationService = organizationService;
         }
 
-        public Account GetById(Guid accountId, bool lazy = false)
+        public Account? GetById(Guid accountId)
         {
-            var accountEntity = _organizationService.Retrieve("Account", accountId, new ColumnSet(new string[] { "Name", "ParentId" }));
-
-            return new Account() { 
-                Id = accountEntity.Id,
-                Name = accountEntity.GetAttributeValue<string>("Name"),
-                Notes = lazy ? new List<Note>() : RetrieveAccountNotes(accountId).ToList(),
-                Contacts = lazy ? new List<Contact>() : RetrieveRelatedContacts(accountId).ToList(),
-                Parent = lazy ? null : FetchAccount(accountEntity.GetAttributeValue<Guid>("ParentId"))
-            };
+            var results = FetchAllAccounts(accountId);
+            var accounts = BuildFromResult(results);
+            return accounts.Count > 0 ? accounts[0] : null;
         }
 
         public Guid Create(Account account)
@@ -193,6 +187,7 @@ namespace Sirocco.Dynamics
                 Account account;
                 Contact contact;
                 Note note;
+                Guid accountNoteId;
 
                 if (entity.Id == default)
                 {
@@ -210,69 +205,77 @@ namespace Sirocco.Dynamics
                     accounts.Add(account.Id, account);
                 }
 
-                var contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.Contactid").Value;
-                if (!contacts.TryGetValue(contactId, out contact))
+                Guid contactId;
+                if (entity.TryGetAttributeValue("contact.Contactid", out contactId))
                 {
-                    contact = new Contact()
+                    if (!contacts.TryGetValue(contactId, out contact))
                     {
-                        Id = contactId,
-                        Name = (string)entity.GetAttributeValue<AliasedValue>("contact.Name").Value,
-                        PhoneNumber = (string)entity.GetAttributeValue<AliasedValue>("contact.PhoneNumber").Value
-                    };
+                        contact = new Contact()
+                        {
+                            Id = contactId,
+                            Name = (string)entity.GetAttributeValue<AliasedValue>("contact.Name").Value,
+                            PhoneNumber = (string)entity.GetAttributeValue<AliasedValue>("contact.PhoneNumber").Value
+                        };
 
-                    var accountId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
-                    if (!contactToAccountMap.ContainsKey(contactId))
-                    {
-                        contactToAccountMap.Add(contactId, accountId);
+                        var accountId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.AccountId").Value;
+                        if (!contactToAccountMap.ContainsKey(contactId))
+                        {
+                            contactToAccountMap.Add(contactId, accountId);
+                        }
+
+                        contacts.Add(contactId, contact);
                     }
 
-                    contacts.Add(contactId, contact);
-                }
+                    Guid contactNoteId;
+                    if(entity.TryGetAttributeValue("contact.note.Noteid", out contactNoteId))
+                    {
+                        if (contactNoteId != default &&
+                        entity.Attributes.ContainsKey("contact.note.ContactId"))
+                        {
+                            note = new()
+                            {
+                                Id = contactNoteId,
+                                Text = (string)entity.GetAttributeValue<AliasedValue>("contact.note.Text").Value
+                            };
 
-                var accountNoteId = (Guid)entity.GetAttributeValue<AliasedValue>("note.Noteid").Value;
-                if (accountNoteId != default &&
+                            if (!notes.ContainsKey(contactNoteId))
+                            {
+                                notes.Add(contactNoteId, note);
+                            }
+
+                            contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.note.ContactId").Value;
+                            if (!notesToContactMap.ContainsKey(contactId))
+                            {
+                                notesToContactMap.Add(contactId, contactNoteId);
+                            }
+                        }
+                    }
+                }
+                
+                if(entity.TryGetAttributeValue("note.Noteid", out accountNoteId))
+                {
+                    if (accountNoteId != default &&
                     entity.Attributes.ContainsKey("note.AccountId"))
-                {
-                    note = new()
                     {
-                        Id = accountNoteId,
-                        Text = (string)entity.GetAttributeValue<AliasedValue>("note.Text").Value
-                    };
+                        note = new()
+                        {
+                            Id = accountNoteId,
+                            Text = (string)entity.GetAttributeValue<AliasedValue>("note.Text").Value
+                        };
 
-                    if (!notes.ContainsKey(accountNoteId))
-                    {
-                        notes.Add(accountNoteId, note);
-                    }
-                    
-                    var accountId = (Guid)entity.GetAttributeValue<AliasedValue>("note.AccountId").Value;
-                    if (!notesToAccountMap.ContainsKey(accountNoteId))
-                    {
-                        notesToAccountMap.Add(accountNoteId, accountId);
-                    }
-                }
+                        if (!notes.ContainsKey(accountNoteId))
+                        {
+                            notes.Add(accountNoteId, note);
+                        }
 
-                var contactNoteId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.note.Noteid").Value;
-                if (contactNoteId != default &&
-                    entity.Attributes.ContainsKey("contact.note.ContactId"))
-                {
-                    note = new()
-                    {
-                        Id = contactNoteId,
-                        Text = (string)entity.GetAttributeValue<AliasedValue>("contact.note.Text").Value
-                    };
-
-                    if (!notes.ContainsKey(contactNoteId))
-                    {
-                        notes.Add(contactNoteId, note);
-                    }
-
-                    contactId = (Guid)entity.GetAttributeValue<AliasedValue>("contact.note.ContactId").Value;
-                    if (!notesToContactMap.ContainsKey(contactId))
-                    {
-                        notesToContactMap.Add(contactId, contactNoteId);
+                        var accountId = (Guid)entity.GetAttributeValue<AliasedValue>("note.AccountId").Value;
+                        if (!notesToAccountMap.ContainsKey(accountNoteId))
+                        {
+                            notesToAccountMap.Add(accountNoteId, accountId);
+                        }
                     }
                 }
-
+                
                 if (entity.Attributes.ContainsKey("ParentId") && !accountToParentMap.ContainsKey(entity.Id)) 
                 {
                     var parentId = entity.GetAttributeValue<Guid>("ParentId");
@@ -309,7 +312,7 @@ namespace Sirocco.Dynamics
             return accounts.Values.ToList();
         }
 
-        private EntityCollection FetchAllAccounts()
+        private EntityCollection FetchAllAccounts(Guid entityId = default)
         {
             var pageNumber = 1;
             var allResults = new EntityCollection();
@@ -322,26 +325,26 @@ namespace Sirocco.Dynamics
                 ColumnSet = new ColumnSet("Name", "ParentId")
             };
 
-            var contactLink = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.Inner)
+            var contactLink = new LinkEntity("Account", "Contact", "Id", "AccountId", JoinOperator.LeftOuter)
             {
                 Columns = new ColumnSet("Contactid", "Name", "PhoneNumber", "AccountId"),
                 EntityAlias = "contact"
             };
 
             // Link the Note entity to the Contact entity
-            contactLink.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.Inner)
+            contactLink.LinkEntities.Add(new LinkEntity("Contact", "Note", "Id", "ContactId", JoinOperator.LeftOuter)
             {
                 Columns = new ColumnSet("Noteid", "Text", "ContactId"),
                 EntityAlias = "contact.note"
             });
 
-            var noteLink = new LinkEntity("Account", "Note", "Id", "AccountId", JoinOperator.Inner)
+            var noteLink = new LinkEntity("Account", "Note", "Id", "AccountId", JoinOperator.LeftOuter)
             {
                 Columns = new ColumnSet("Noteid", "Text", "AccountId"),
                 EntityAlias = "note"
             };
 
-            var parentLink = new LinkEntity("Account", "Account", "ParentId", "Id", JoinOperator.Inner)
+            var parentLink = new LinkEntity("Account", "Account", "ParentId", "Id", JoinOperator.LeftOuter)
             {
                 Columns = new ColumnSet("Name"),
                 EntityAlias = "parent"
@@ -350,6 +353,24 @@ namespace Sirocco.Dynamics
             query.LinkEntities.Add(contactLink);
             query.LinkEntities.Add(noteLink);
             query.LinkEntities.Add(parentLink);
+
+            if (entityId != default)
+            {
+                query.Criteria = new FilterExpression()
+                {
+                    //Conditions = { new ConditionExpression("Id", ConditionOperator.Equal, entityId) },
+                    Filters = { new FilterExpression()
+                    {
+                        Conditions = { new ConditionExpression("Id", ConditionOperator.Equal, entityId) }
+                    }}
+                };
+
+                //query.Criteria.AddFilter(new FilterExpression() { 
+                //    Conditions = { new ConditionExpression("Id", ConditionOperator.Equal, entityId) }
+                //});
+
+                //query.Criteria.AddCondition("Id", ConditionOperator.Equal, entityId);
+            }
 
             while (hasMoreRecords && pageNumber <= maxPages)
             {
@@ -374,6 +395,9 @@ namespace Sirocco.Dynamics
             }
 
             return allResults;
+
+            //var results = _organizationService.RetrieveMultiple(query);
+            //return results;
         }
 
         private IEnumerable<Note> RetrieveAccountNotes(Guid accountId)
