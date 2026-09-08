@@ -60,6 +60,10 @@ namespace Sirocco.Dynamics
             AddOtherNotes(account1Id, account2Id);
 
             // 12. Query the database for all contacts and all accounts and all notes. This should be done in one query. Create a list containing “name” (account or contact) and “notetext”.
+            var notes = _accountRepository.GetNoteTexts();
+            LogNotes(notes);
+
+            // To check data
             var all = _accountRepository.GetAll();
 
             LogAccountDetails(_accountRepository.GetById(account1Id));
@@ -115,6 +119,11 @@ namespace Sirocco.Dynamics
             _logger.LogInformation($"Account ID: {account.Id}, Name: {account.Name}, Parent:{account.Parent?.Name} \n"
                 + $"Notes:{string.Join(", ", account.Notes.Select(n => $"'{n.Text}'"))} \n"
                 + $"Contacts:{string.Join(", ", account.Contacts.Select(c => $"'{c.Name} ({c.PhoneNumber})'"))}");
+        }
+
+        private void LogNotes(IList<Tuple<string, string>> notes)
+        {
+            _logger.LogInformation($"Notes: {string.Join("\n", notes.Select(n => $"'{n.Item1}: {n.Item2}'"))}");
         }
     }
 }

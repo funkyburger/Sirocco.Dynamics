@@ -18,6 +18,7 @@ namespace Sirocco.Dynamics
         Guid Create(Account account);
         void Update(Account account);
         IList<Account> GetAll();
+        IList<Tuple<string, string>> GetNoteTexts();
     }
 
     internal class AccountRepository : IAccountRepository
@@ -172,6 +173,33 @@ namespace Sirocco.Dynamics
             return BuildFromResult(results);
         }
 
+        public IList<Tuple<string, string>> GetNoteTexts()
+        {
+            var notes = FetchAllNotes();
+            var noteTexts = new List<Tuple<string, string>>();
+
+            foreach (var note in notes.Entities)
+            {
+                if (note.Attributes.ContainsKey("AccountId"))
+                {
+                    noteTexts.Add(new Tuple<string, string>(
+                        (string)note.GetAttributeValue<AliasedValue>("account.Name").Value,
+                        note.GetAttributeValue<string>("Text")
+                    ));
+                }
+
+                if(note.Attributes.ContainsKey("Contactid"))
+                {
+                    noteTexts.Add(new Tuple<string, string>(
+                        (string)note.GetAttributeValue<AliasedValue>("contact.Name").Value,
+                        note.GetAttributeValue<string>("Text")
+                    ));
+                }
+            }
+
+            return noteTexts;
+        }
+
         private IList<Account> BuildFromResult(EntityCollection entityCollection)
         {
             Dictionary<Guid, Account> accounts = new();
@@ -320,12 +348,6 @@ namespace Sirocco.Dynamics
 
         private EntityCollection FetchAllAccounts(Guid entityId = default)
         {
-            var pageNumber = 1;
-            var allResults = new EntityCollection();
-            var maxPages = 1000; // Safety limit
-            var hasMoreRecords = true;
-            string pagingCookie = null;
-
             var query = new QueryExpression("Account")
             {
                 ColumnSet = new ColumnSet("Name", "ParentId")
@@ -370,6 +392,39 @@ namespace Sirocco.Dynamics
                     }}
                 };
             }
+
+            return FetchResults(query);
+        }
+
+        private EntityCollection FetchAllNotes()
+        {
+            var query = new QueryExpression("Note")
+            {
+                ColumnSet = new ColumnSet("Noteid", "Text", "AccountId")
+            };
+
+            query.LinkEntities.Add(new LinkEntity("Note", "Account", "AccountId", "Id", JoinOperator.Inner)
+            {
+                Columns = new ColumnSet("Name"),
+                EntityAlias = "account"
+            });
+
+            query.LinkEntities.Add(new LinkEntity("Note", "Contact", "ContactId", "Id", JoinOperator.Inner)
+            {
+                Columns = new ColumnSet("Name"),
+                EntityAlias = "contact"
+            });
+
+            return FetchResults(query);
+        }
+
+        private EntityCollection FetchResults(QueryExpression query)
+        {
+            var pageNumber = 1;
+            var allResults = new EntityCollection();
+            var maxPages = 1000; // Safety limit
+            var hasMoreRecords = true;
+            string pagingCookie = null;
 
             while (hasMoreRecords && pageNumber <= maxPages)
             {
