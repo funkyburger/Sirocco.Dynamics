@@ -394,69 +394,6 @@ namespace Sirocco.Dynamics
             }
 
             return allResults;
-
-            //var results = _organizationService.RetrieveMultiple(query);
-            //return results;
-        }
-
-        private IEnumerable<Note> RetrieveAccountNotes(Guid accountId)
-            => RetrieveRelatedNotes(accountId, "AccountId");
-
-        private IEnumerable<Note> RetrieveContactNotes(Guid accountId)
-            => RetrieveRelatedNotes(accountId, "ContactId");
-
-        private IEnumerable<Note> RetrieveRelatedNotes(Guid accountId, string mappingProperty)
-        {
-            if(accountId == default)
-            {
-                yield break;
-            }
-
-            var filter = new FilterExpression();
-            filter.Conditions.Add(new ConditionExpression(mappingProperty, ConditionOperator.Equal, accountId));
-            QueryExpression relatedNotesQuery = new("Note")
-            {
-                TopCount = 100
-            };
-            relatedNotesQuery.ColumnSet.AddColumns("Text");
-            relatedNotesQuery.Criteria.AddFilter(filter);
-
-            var relatedNotes = _organizationService.RetrieveMultiple(relatedNotesQuery);
-
-            foreach (var relatedNote in relatedNotes.Entities)
-            {
-                yield return new Note()
-                {
-                    Id = relatedNote.Id,
-                    Text = relatedNote.GetAttributeValue<string>("Text")
-                };
-            }
-        }
-
-        private IEnumerable<Contact> RetrieveRelatedContacts(Guid accountId)
-        {
-            var filter = new FilterExpression();
-            filter.Conditions.Add(new ConditionExpression("AccountId", ConditionOperator.Equal, accountId));
-            QueryExpression relatedNotesQuery = new("Contact")
-            {
-                TopCount = 100
-            };
-            relatedNotesQuery.ColumnSet.AddColumns("Name");
-            relatedNotesQuery.ColumnSet.AddColumns("PhoneNumber");
-            relatedNotesQuery.Criteria.AddFilter(filter);
-
-            var relatedNotes = _organizationService.RetrieveMultiple(relatedNotesQuery);
-
-            foreach (var contact in relatedNotes.Entities)
-            {
-                yield return new Contact()
-                {
-                    Id = contact.Id,
-                    Name = contact.GetAttributeValue<string>("Name"),
-                    PhoneNumber = contact.GetAttributeValue<string>("PhoneNumber"),
-                    Notes = RetrieveContactNotes(contact.Id).ToList()
-                };
-            }
         }
 
         private Account? FetchAccount(Guid accountId)
